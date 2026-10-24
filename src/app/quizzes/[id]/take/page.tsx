@@ -5,11 +5,12 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 
 type Option = { id: string; text: string };
+type MatchOptions = { left: Option[]; right: Option[] };
 type Question = {
   id: string;
   type: string;
   text: string;
-  options: Option[] | null;
+  options: unknown;
   marks: number;
   order: number;
 };
@@ -21,8 +22,15 @@ type Quiz = {
   questions: Question[];
 };
 
-// questionId -> { optionId } | { value }
-type Answers = Record<string, { optionId?: string; value?: boolean }>;
+type Answer = {
+  optionId?: string;
+  value?: boolean;
+  blanks?: string[];
+  pairs?: { left: string; right: string }[];
+};
+type Answers = Record<string, Answer>;
+
+const BLANK = "___";
 
 export default function TakeQuizPage() {
   const { id } = useParams<{ id: string }>();
@@ -53,6 +61,10 @@ export default function TakeQuizPage() {
     })();
   }, [id]);
 
+  function setAnswer(qid: string, value: Answer) {
+    setAnswers((prev) => ({ ...prev, [qid]: value }));
+  }
+
   async function submit() {
     if (submittedRef.current) return;
     submittedRef.current = true;
@@ -67,7 +79,6 @@ export default function TakeQuizPage() {
     console.log("SUBMIT", { quizId: id, answers: answersRef.current });
   }
 
-  // countdown + auto-submit
   useEffect(() => {
     if (secondsLeft === null || submitted) return;
     if (secondsLeft <= 0) {
@@ -101,9 +112,7 @@ export default function TakeQuizPage() {
     return (
       <main className="mx-auto max-w-2xl p-6">
         <h1 className="mb-2 text-2xl font-bold">Submitted</h1>
-        <p className="mb-4 text-gray-600">
-          Your answers have been recorded.
-        </p>
+        <p className="mb-4 text-gray-600">Your answers have been recorded.</p>
         <Link href="/quizzes" className="text-blue-600 underline">
           Back to quizzes
         </Link>
@@ -113,6 +122,135 @@ export default function TakeQuizPage() {
 
   const mm = secondsLeft !== null ? Math.floor(secondsLeft / 60) : 0;
   const ss = secondsLeft !== null ? secondsLeft % 60 : 0;
+
+  function renderQuestion(q: Question) {
+    const current = answers[q.id] ?? {};
+
+    if (q.type === "MCQ") {
+      const opts = (q.options as Option[]) ?? [];
+      return (
+        <div className="space-y-2">
+          {opts.map((o) => (
+            <label key={o.id} className="flex items-center gap-2">
+              <input
+                type="radio"
+                name={q.id}
+                checked={current.optionId === o.id}
+                onChange={() => setAnswer(q.id, { optionId: o.id })}
+              />
+              {o.text}
+            </label>
+          ))}
+        </div>
+      );
+    }
+
+    if (q.type === "DROPDOWN") {
+      const opts = (q.options as Option[]) ?? [];
+      return (
+        <select
+          className="rounded border p-2"
+          value={current.optionId ?? ""}
+          onChange={(e) =>
+            setAnswer(q.id, e.target.value ? { optionId: e.target.value } : {})
+          }
+        >
+          <option value="">-- Select an answer --</option>
+          {opts.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.text}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (q.type === "TRUE_FALSE") {
+      return (
+        <div className="flex gap-6">
+          {[true, false].map((v) => (
+            <label key={String(v)} className="flex items-center gap-2">
+              <input
+                type="radio"
+                name={q.id}
+                checked={current.value === v}
+                onChange={() => setAnswer(q.id, { value: v })}
+              />
+              {v ? "True" : "False"}
+            </label>
+          ))}
+        </div>
+      );
+    }
+
+    if (q.type === "FILL_BLANK") {
+      const parts = q.text.split(BLANK);
+      const count = parts.length - 1;
+      const blanks = current.blanks ?? Array.from({ length: count }, () => "");
+      return (
+        <p className="leading-10">
+          {parts.map((part, i) => (
+            <span key={i}>
+              {part}
+              {i < count && (
+                <input
+                  className="mx-1 w-32 rounded border px-2 py-1"
+                  value={blanks[i] ?? ""}
+                  onChange={(e) => {
+                    const next = Array.from(
+                      { length: count },
+                      (_, k) => blanks[k] ?? ""
+                    );
+                    next[i] = e.target.value;
+                    setAnswer(q.id, { blanks: next });
+                  }}
+                />
+              )}
+            </span>
+          ))}
+        </p>
+      );
+    }
+
+    if (q.type === "MATCHING") {
+      const opts = q.options as MatchOptions;
+      // sorted by text so the order never reveals the correct pairing
+      const rightSorted = [...(opts?.right ?? [])].sort((a, b) =>
+        a.text.localeCompare(b.text)
+      );
+      const pairs = current.pairs ?? [];
+      return (
+        <div className="space-y-2">
+          {(opts?.left ?? []).map((l) => (
+            <div key={l.id} className="flex items-center gap-3">
+              <span className="w-1/2">{l.text}</span>
+              <select
+                className="flex-1 rounded border p-2"
+                value={pairs.find((p) => p.left === l.id)?.right ?? ""}
+                onChange={(e) => {
+                  const rest = pairs.filter((p) => p.left !== l.id);
+                  setAnswer(q.id, {
+                    pairs: e.target.value
+                      ? [...rest, { left: l.id, right: e.target.value }]
+                      : rest,
+                  });
+                }}
+              >
+                <option value="">-- Select --</option>
+                {rightSorted.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.text}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return <p className="text-sm text-gray-500">Unsupported question type.</p>;
+  }
 
   return (
     <main className="mx-auto max-w-2xl p-6">
@@ -136,51 +274,11 @@ export default function TakeQuizPage() {
         {quiz.questions.map((q) => (
           <div key={q.id} className="rounded border p-4">
             <p className="mb-3 font-medium">
-              {q.order}. {q.text}{" "}
+              {q.order}.{" "}
+              {q.type === "FILL_BLANK" ? "Fill in the blank(s)" : q.text}{" "}
               <span className="text-sm text-gray-500">({q.marks} marks)</span>
             </p>
-
-            {q.type === "MCQ" && q.options && (
-              <div className="space-y-2">
-                {q.options.map((o) => (
-                  <label key={o.id} className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name={q.id}
-                      checked={answers[q.id]?.optionId === o.id}
-                      onChange={() =>
-                        setAnswers({ ...answers, [q.id]: { optionId: o.id } })
-                      }
-                    />
-                    {o.text}
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {q.type === "TRUE_FALSE" && (
-              <div className="flex gap-6">
-                {[true, false].map((v) => (
-                  <label key={String(v)} className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name={q.id}
-                      checked={answers[q.id]?.value === v}
-                      onChange={() =>
-                        setAnswers({ ...answers, [q.id]: { value: v } })
-                      }
-                    />
-                    {v ? "True" : "False"}
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {q.type !== "MCQ" && q.type !== "TRUE_FALSE" && (
-              <p className="text-sm text-gray-500">
-                This question type is not supported in the UI yet.
-              </p>
-            )}
+            {renderQuestion(q)}
           </div>
         ))}
       </div>

@@ -3,13 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-type Option = { id: string; text: string };
+type QType = "MCQ" | "TRUE_FALSE" | "DROPDOWN" | "FILL_BLANK" | "MATCHING";
 type Question = {
   id: string;
   type: string;
   text: string;
-  options: Option[] | null;
-  correctAnswer: { optionId?: string; value?: boolean };
   marks: number;
   order: number;
 };
@@ -20,18 +18,31 @@ type Quiz = {
   questions: Question[];
 };
 
+const BLANK = "___";
+const emptyPairs = () => [
+  { left: "", right: "" },
+  { left: "", right: "" },
+  { left: "", right: "" },
+  { left: "", right: "" },
+];
+
 export default function EditQuizPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [error, setError] = useState("");
 
-  const [type, setType] = useState<"MCQ" | "TRUE_FALSE">("MCQ");
+  const [type, setType] = useState<QType>("MCQ");
   const [text, setText] = useState("");
   const [marks, setMarks] = useState("1");
   const [choices, setChoices] = useState(["", "", "", ""]);
   const [correct, setCorrect] = useState(0);
   const [tfValue, setTfValue] = useState(true);
+  const [caseSensitive, setCaseSensitive] = useState(false);
+  const [blankAnswers, setBlankAnswers] = useState<string[]>([]);
+  const [pairs, setPairs] = useState(emptyPairs());
+
+  const blankCount = text.split(BLANK).length - 1;
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/quizzes/${id}`);
@@ -58,38 +69,74 @@ export default function EditQuizPage() {
     );
   }
 
-  async function addQuestion() {
-    setError("");
-    let body: Record<string, unknown>;
-    if (type === "MCQ") {
-      const filled = choices
-        .map((c, i) => ({ id: String.fromCharCode(97 + i), text: c.trim() }))
-        .filter((c) => c.text);
-      body = {
-        type,
-        text,
-        marks: Number(marks) || 1,
-        options: filled,
-        correctAnswer: { optionId: String.fromCharCode(97 + correct) },
-      };
-    } else {
-      body = {
-        type,
-        text,
-        marks: Number(marks) || 1,
-        correctAnswer: { value: tfValue },
-      };
-    }
-    const res = await fetch(`/api/quizzes/${id}/questions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!res.ok) return showError(data);
+  function resetForm() {
     setText("");
     setChoices(["", "", "", ""]);
     setCorrect(0);
+    setBlankAnswers([]);
+    setPairs(emptyPairs());
+  }
+
+  function buildBody(): Record<string, unknown> {
+    const base = { type, text, marks: Number(marks) || 1 };
+
+    if (type === "MCQ" || type === "DROPDOWN") {
+      const options = choices
+        .map((c, i) => ({ id: String.fromCharCode(97 + i), text: c.trim() }))
+        .filter((c) => c.text);
+      return {
+        ...base,
+        options,
+        correctAnswer: { optionId: String.fromCharCode(97 + correct) },
+      };
+    }
+
+    if (type === "TRUE_FALSE") {
+      return { ...base, correctAnswer: { value: tfValue } };
+    }
+
+    if (type === "FILL_BLANK") {
+      const blanks = Array.from({ length: blankCount }, (_, i) =>
+        (blankAnswers[i] ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      );
+      return {
+        ...base,
+        options: { caseSensitive },
+        correctAnswer: { blanks },
+      };
+    }
+
+    // MATCHING
+    const left: { id: string; text: string }[] = [];
+    const right: { id: string; text: string }[] = [];
+    const correctPairs: { left: string; right: string }[] = [];
+    pairs.forEach((p, i) => {
+      if (p.left.trim() && p.right.trim()) {
+        left.push({ id: `l${i + 1}`, text: p.left.trim() });
+        right.push({ id: `r${i + 1}`, text: p.right.trim() });
+        correctPairs.push({ left: `l${i + 1}`, right: `r${i + 1}` });
+      }
+    });
+    return {
+      ...base,
+      options: { left, right },
+      correctAnswer: { pairs: correctPairs },
+    };
+  }
+
+  async function addQuestion() {
+    setError("");
+    const res = await fetch(`/api/quizzes/${id}/questions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildBody()),
+    });
+    const data = await res.json();
+    if (!res.ok) return showError(data);
+    resetForm();
     load();
   }
 
@@ -148,29 +195,42 @@ export default function EditQuizPage() {
       {quiz.status === "DRAFT" && (
         <div className="space-y-3 rounded border p-4">
           <h2 className="font-semibold">Add question</h2>
+
           <select
             className="rounded border p-2"
             value={type}
-            onChange={(e) => setType(e.target.value as "MCQ" | "TRUE_FALSE")}
+            onChange={(e) => setType(e.target.value as QType)}
           >
             <option value="MCQ">Multiple choice</option>
             <option value="TRUE_FALSE">True / False</option>
+            <option value="DROPDOWN">Dropdown</option>
+            <option value="FILL_BLANK">Fill in the blank</option>
+            <option value="MATCHING">Matching</option>
           </select>
+
           <input
             className="w-full rounded border p-2"
-            placeholder="Question text"
+            placeholder={
+              type === "FILL_BLANK"
+                ? "e.g. The capital of France is ___."
+                : "Question text"
+            }
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
-          <input
-            type="number"
-            min={1}
-            className="w-24 rounded border p-2"
-            value={marks}
-            onChange={(e) => setMarks(e.target.value)}
-          />
 
-          {type === "MCQ" ? (
+          <div className="flex items-center gap-2">
+            <label className="text-sm">Marks</label>
+            <input
+              type="number"
+              min={1}
+              className="w-24 rounded border p-2"
+              value={marks}
+              onChange={(e) => setMarks(e.target.value)}
+            />
+          </div>
+
+          {(type === "MCQ" || type === "DROPDOWN") && (
             <div className="space-y-2">
               {choices.map((c, i) => (
                 <div key={i} className="flex items-center gap-2">
@@ -196,7 +256,9 @@ export default function EditQuizPage() {
                 Select the radio button next to the correct option.
               </p>
             </div>
-          ) : (
+          )}
+
+          {type === "TRUE_FALSE" && (
             <div className="flex gap-4">
               <label>
                 <input
@@ -214,6 +276,73 @@ export default function EditQuizPage() {
                 />{" "}
                 False
               </label>
+            </div>
+          )}
+
+          {type === "FILL_BLANK" && (
+            <div className="space-y-2">
+              <p className="text-xs text-gray-500">
+                Use ___ (3 underscores) in the question text for each blank.
+                Blanks found: {blankCount}
+              </p>
+              {Array.from({ length: blankCount }, (_, i) => (
+                <input
+                  key={i}
+                  className="w-full rounded border p-2"
+                  placeholder={`Blank ${i + 1} accepted answers (comma separated)`}
+                  value={blankAnswers[i] ?? ""}
+                  onChange={(e) => {
+                    const next = [...blankAnswers];
+                    next[i] = e.target.value;
+                    setBlankAnswers(next);
+                  }}
+                />
+              ))}
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={caseSensitive}
+                  onChange={(e) => setCaseSensitive(e.target.checked)}
+                />
+                Case sensitive
+              </label>
+            </div>
+          )}
+
+          {type === "MATCHING" && (
+            <div className="space-y-2">
+              <p className="text-xs text-gray-500">
+                Each row is a correct pair (left matches right). Fill at least 2
+                rows. Students will see the right side in a dropdown.
+              </p>
+              {pairs.map((p, i) => (
+                <div key={i} className="flex gap-2">
+                  <input
+                    className="flex-1 rounded border p-2"
+                    placeholder={`Left ${i + 1}`}
+                    value={p.left}
+                    onChange={(e) =>
+                      setPairs(
+                        pairs.map((x, j) =>
+                          j === i ? { ...x, left: e.target.value } : x
+                        )
+                      )
+                    }
+                  />
+                  <input
+                    className="flex-1 rounded border p-2"
+                    placeholder={`Right ${i + 1}`}
+                    value={p.right}
+                    onChange={(e) =>
+                      setPairs(
+                        pairs.map((x, j) =>
+                          j === i ? { ...x, right: e.target.value } : x
+                        )
+                      )
+                    }
+                  />
+                </div>
+              ))}
             </div>
           )}
 
