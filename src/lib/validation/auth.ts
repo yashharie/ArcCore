@@ -17,9 +17,14 @@ export const RegisterSchema = z.object({
     .trim(),
 
   email: z
-    .email({ error: "Please enter a valid email address." })
-    .max(254, { error: "Email address is too long." })
-    .transform((v) => v.toLowerCase().trim()),
+    .string({ error: "Email is required." })
+    .trim()
+    .toLowerCase()
+    .pipe(
+      z
+        .email({ error: "Please enter a valid email address." })
+        .max(254, { error: "Email address is too long." })
+    ),
 
   password: z
     .string({ error: "Password is required." })
@@ -37,8 +42,10 @@ export type RegisterInput = z.infer<typeof RegisterSchema>;
 
 export const LoginSchema = z.object({
   email: z
-    .email({ error: "Please enter a valid email address." })
-    .transform((v) => v.toLowerCase().trim()),
+    .string({ error: "Email is required." })
+    .trim()
+    .toLowerCase()
+    .pipe(z.email({ error: "Please enter a valid email address." })),
 
   password: z
     .string({ error: "Password is required." })
