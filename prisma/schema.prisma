@@ -1,0 +1,227 @@
+// ArcCore - Prisma Schema
+// Shared database schema for all 5 members
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// Member 1: Users & Auth
+// ─────────────────────────────────────────
+
+enum Role {
+  MEMBER
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  topics          Topic[]
+  quizzesCreated  Quiz[]
+  attempts        Attempt[]
+  topicProgress   TopicProgress[]
+  leaderboard     Leaderboard?
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────
+// Member 2: Topics
+// ─────────────────────────────────────────
+
+model Topic {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  content     String   @db.Text
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  quizzes       Quiz[]
+  topicProgress TopicProgress[]
+
+  @@map("topics")
+}
+
+// ─────────────────────────────────────────
+// Member 3: Quizzes & Questions
+// ─────────────────────────────────────────
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  DROPDOWN
+  FILL_IN_THE_BLANK
+  MATCHING
+}
+
+model Quiz {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  topicId     String?
+  topic       Topic?     @relation(fields: [topicId], references: [id])
+  creatorId   String
+  creator     User       @relation(fields: [creatorId], references: [id])
+  status      QuizStatus @default(DRAFT)
+  timeLimit   Int?       // in minutes
+  deadline    DateTime?
+  totalMarks  Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  questions       Question[]
+  attempts        Attempt[]
+  quizAssignments QuizAssignment[]
+
+  @@map("quizzes")
+}
+
+model Question {
+  id            String       @id @default(cuid())
+  quizId        String
+  quiz          Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  type          QuestionType
+  questionText  String       @db.Text
+  options       Json?        // array of options for MCQ/dropdown/matching
+  correctAnswer Json         // flexible to support all question types
+  marks         Int          @default(1)
+  explanation   String?      @db.Text
+  orderIndex    Int          @default(0)
+  createdAt     DateTime     @default(now())
+
+  // Relations
+  attemptAnswers AttemptAnswer[]
+
+  @@map("questions")
+}
+
+model QuizAssignment {
+  id         String    @id @default(cuid())
+  quizId     String
+  quiz       Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  assignedTo String?   // null = assigned to everyone
+  deadline   DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@map("quiz_assignments")
+}
+
+// ─────────────────────────────────────────
+// Member 4: Attempts, Results & Leaderboard
+// ─────────────────────────────────────────
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  TIMED_OUT
+}
+
+model Attempt {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  quizId      String
+  quiz        Quiz          @relation(fields: [quizId], references: [id])
+  status      AttemptStatus @default(IN_PROGRESS)
+  score       Int           @default(0)
+  totalMarks  Int           @default(0)
+  startedAt   DateTime      @default(now())
+  submittedAt DateTime?
+  timeTaken   Int?          // in seconds
+
+  // Relations
+  attemptAnswers AttemptAnswer[]
+
+  @@unique([userId, quizId]) // one attempt per user per quiz (can relax later)
+  @@map("attempts")
+}
+
+model AttemptAnswer {
+  id           String   @id @default(cuid())
+  attemptId    String
+  attempt      Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     Question @relation(fields: [questionId], references: [id])
+  submittedAnswer Json
+  isCorrect    Boolean  @default(false)
+  marksAwarded Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@map("attempt_answers")
+}
+
+model Leaderboard {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+  totalScore   Int      @default(0)
+  quizzesTaken Int      @default(0)
+  rank         Int?
+  updatedAt    DateTime @updatedAt
+
+  @@map("leaderboard")
+}
+
+model TopicProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  topicId     String
+  topic       Topic    @relation(fields: [topicId], references: [id])
+  completed   Boolean  @default(false)
+  viewedAt    DateTime @default(now())
+
+  @@unique([userId, topicId])
+  @@map("topic_progress")
+}
+
+// ─────────────────────────────────────────
+// Member 5: Exams
+// ─────────────────────────────────────────
+
+enum ExamStatus {
+  SCHEDULED
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+model Exam {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  createdById String
+  status      ExamStatus @default(SCHEDULED)
+  scheduledAt DateTime
+  duration    Int        // in minutes
+  totalMarks  Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("exams")
+}
