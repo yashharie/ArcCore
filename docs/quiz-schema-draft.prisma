@@ -1,0 +1,71 @@
+// ArcCore - Quiz module schema (Member 3) - DRAFT
+// Paste into prisma/schema.prisma after Member 1 sets up Prisma.
+// User (Member 1) and Topic (Member 2) models are owned by them.
+// For now createdById / topicId / userId are plain String ids;
+// add @relation links once those models exist.
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+  DROPDOWN
+  FILL_BLANK
+  MATCHING
+}
+
+model Quiz {
+  id               String      @id @default(cuid())
+  title            String
+  description      String?
+  topicId          String?     // Member 2's Topic id (optional link)
+  createdById      String      // Member 1's User id (Member or ADMIN)
+  timeLimitMinutes Int?        // null = no time limit
+  startsAt         DateTime?   // null = available immediately
+  deadline         DateTime?   // null = no deadline
+  status           QuizStatus  @default(DRAFT)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  questions        Question[]
+  assignments      QuizAssignment[]
+
+  @@index([createdById])
+  @@index([topicId])
+  @@index([status])
+}
+
+model Question {
+  id            String       @id @default(cuid())
+  quizId        String
+  type          QuestionType
+  text          String
+  options       Json?        // shape depends on type (see docs/quiz-answer-format.md)
+  correctAnswer Json         // NEVER send this to the browser while a quiz is being taken
+  marks         Int          @default(1)
+  explanation   String?      // shown in the answer review
+  order         Int          // position in the quiz (1, 2, 3 ...)
+
+  quiz          Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId, order])
+}
+
+// Shared with Member 5 (group exams).
+model QuizAssignment {
+  id            String    @id @default(cuid())
+  quizId        String
+  userId        String?   // specific member; null when assignedToAll = true
+  assignedToAll Boolean   @default(false)
+  examId        String?   // Member 5's Exam id, if part of a group exam
+  assignedAt    DateTime  @default(now())
+
+  quiz          Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, userId])
+  @@index([userId])
+}
