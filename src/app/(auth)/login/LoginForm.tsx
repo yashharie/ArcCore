@@ -17,7 +17,7 @@ export default function LoginForm() {
       {state?.message && (
         <p
           role="alert"
-          className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400"
+          className="rounded-lg bg-red-500/20 border border-red-400/30 px-4 py-3 text-sm text-red-300"
         >
           {state.message}
         </p>
@@ -27,7 +27,7 @@ export default function LoginForm() {
       <div className="flex flex-col gap-1.5">
         <label
           htmlFor="login-email"
-          className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          className="text-sm font-medium text-gray-200"
         >
           Email Address
         </label>
@@ -38,7 +38,7 @@ export default function LoginForm() {
           autoComplete="email"
           required
           disabled={pending}
-          className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-500 dark:focus:ring-zinc-800"
+          className="rounded-lg border border-blue-400/30 bg-white/10 px-4 py-2.5 text-sm text-white placeholder-blue-300/50 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40 disabled:opacity-50"
           placeholder="alice@example.com"
         />
         {state?.errors?.email && (
@@ -52,7 +52,7 @@ export default function LoginForm() {
       <div className="flex flex-col gap-1.5">
         <label
           htmlFor="login-password"
-          className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          className="text-sm font-medium text-gray-200"
         >
           Password
         </label>
@@ -63,7 +63,7 @@ export default function LoginForm() {
           autoComplete="current-password"
           required
           disabled={pending}
-          className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-500 dark:focus:ring-zinc-800"
+          className="rounded-lg border border-blue-400/30 bg-white/10 px-4 py-2.5 text-sm text-white placeholder-blue-300/50 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40 disabled:opacity-50"
           placeholder="Your password"
         />
         {state?.errors?.password && (
@@ -78,7 +78,7 @@ export default function LoginForm() {
         id="login-submit"
         type="submit"
         disabled={pending}
-        className="flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        className="flex items-center justify-center gap-2 rounded-lg bg-yellow-400 px-4 py-2.5 text-sm font-bold text-slate-900 transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? (
           <>
@@ -93,14 +93,8 @@ export default function LoginForm() {
         )}
       </button>
 
-      <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
-        Don&apos;t have an account?{" "}
-        <Link
-          href="/register"
-          className="font-medium text-zinc-900 underline underline-offset-4 hover:text-zinc-600 dark:text-zinc-100 dark:hover:text-zinc-300"
-        >
-          Create one
-        </Link>
+      <p className="text-center text-xs text-blue-300/50">
+        Access is by invitation only. Contact your admin if you need an account.
       </p>
     </form>
   );

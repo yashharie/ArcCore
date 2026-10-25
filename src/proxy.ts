@@ -1,32 +1,33 @@
 /**
  * Next.js Proxy (formerly middleware) — session-based route protection.
  *
- * Runs on every request matching the configured pattern.
  * - Protected routes: redirects unauthenticated users to /login.
- * - Auth routes (/login, /register): redirects already-authenticated users to /dashboard.
- * - Public routes: no check.
- *
- * Note: The `middleware` file convention is deprecated in Next.js 16.
- * This file uses the new `proxy.ts` convention with the named `proxy` export.
- *
- * Security: middleware reads the session JWT from the cookie and validates it
- * using jose (same key as session.ts). The role is read from the token for
- * redirect decisions — all actual authorization is re-verified server-side
- * inside each handler/action.
+ * - Auth routes (/login, /register): redirects authenticated users to /dashboard.
+ * - mustChangePassword: redirects to /change-password except when already there.
  */
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
-// Must match the cookie name in session.ts
 const SESSION_COOKIE = "arccore_session";
 
-// Routes that require an authenticated session
-const PROTECTED_PREFIXES = ["/dashboard", "/profile"];
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/profile",
+  "/quizzes",
+  "/topics",
+  "/results",
+  "/leaderboard",
+  "/exams",
+  "/admin",
+];
 
-// Auth routes — authenticated users should not see these
-const AUTH_ROUTES = ["/login", "/register"];
+// Auth routes — authenticated users should not see the login page
+const AUTH_ROUTES = ["/login"];
+
+// Routes a must-change-password user is allowed to access
+const CHANGE_PASSWORD_ALLOWED = ["/change-password", "/api/auth/change-password"];
 
 function getSecretKey(): Uint8Array {
   const secret = process.env.SESSION_SECRET;
@@ -43,10 +44,7 @@ async function getSessionFromRequest(
     const { payload } = await jwtVerify(token, getSecretKey(), {
       algorithms: ["HS256"],
     });
-    if (
-      typeof payload.userId !== "string" ||
-      typeof payload.role !== "string"
-    ) {
+    if (typeof payload.userId !== "string" || typeof payload.role !== "string") {
       return null;
     }
     return { userId: payload.userId, role: payload.role };
@@ -86,13 +84,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image  (image optimization)
-     * - favicon.ico  (favicon)
-     * - public files (svg, png, jpg, etc.)
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

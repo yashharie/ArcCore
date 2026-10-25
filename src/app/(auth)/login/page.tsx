@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import LoginForm from "./LoginForm";
 
 export const metadata: Metadata = {
@@ -8,20 +9,16 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-16">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 px-4 py-16">
       <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Welcome back
-          </h1>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Sign in to your ArcCore account
-          </p>
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8">
+          <Image src="/logo.svg" alt="ArcCore" width={72} height={72} priority className="mb-3" />
+          <h1 className="text-2xl font-bold text-white">Welcome back</h1>
+          <p className="mt-1 text-sm text-blue-300/70">Sign in to your ArcCore account</p>
         </div>
 
-        {/* Card */}
-        <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="rounded-2xl border border-blue-400/20 bg-white/5 backdrop-blur p-8 shadow-xl">
           <LoginForm />
         </div>
       </div>

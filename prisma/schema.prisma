@@ -1,3 +1,5 @@
+// ArcCore — Unified Prisma Schema
+// Integrates: auth (Member 1), quiz-builder (Member 3), leaderboard (Member 4)
 
 generator client {
   provider = "prisma-client"
@@ -8,17 +10,273 @@ datasource db {
   provider = "postgresql"
 }
 
+// ─────────────────────────────────────────
+// Member 1: Users & Auth
+// ─────────────────────────────────────────
+
 enum UserRole {
   ADMIN
   MEMBER
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         UserRole @default(MEMBER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                    String    @id @default(cuid())
+  name                  String
+  email                 String    @unique
+  passwordHash          String
+  role                  UserRole  @default(MEMBER)
+  mustChangePassword    Boolean   @default(false)
+  tempPasswordHash      String?
+  tempPasswordExpiresAt DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // Relations
+  topics         Topic[]
+  quizzesCreated Quiz[]
+  assignments    QuizAssignment[]
+  attempts       Attempt[]
+  topicProgress  TopicProgress[]
+  leaderboard    Leaderboard?
+  quizLeaderboard QuizLeaderboard[]
+  examsCreated   Exam[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────
+// Member 2: Topics (placeholder — to be built)
+// ─────────────────────────────────────────
+
+model Topic {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  content     String   @db.Text
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  quizzes       Quiz[]
+  topicProgress TopicProgress[]
+
+  @@map("topics")
+}
+
+// ─────────────────────────────────────────
+// Member 3: Quizzes & Questions
+// ─────────────────────────────────────────
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+  DROPDOWN
+  FILL_BLANK
+  MATCHING
+}
+
+model Quiz {
+  id               String     @id @default(cuid())
+  title            String
+  description      String?
+  topicId          String?
+  topic            Topic?     @relation(fields: [topicId], references: [id])
+  createdById      String
+  createdBy        User       @relation(fields: [createdById], references: [id])
+  timeLimitMinutes Int?
+  startsAt         DateTime?
+  deadline         DateTime?
+  status           QuizStatus @default(DRAFT)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  // Relations
+  questions   Question[]
+  assignments QuizAssignment[]
+  attempts    Attempt[]
+  examQuizzes ExamQuiz[]
+  quizLeaderboard QuizLeaderboard[]
+
+  @@index([createdById])
+  @@index([topicId])
+  @@index([status])
+  @@map("quizzes")
+}
+
+model Question {
+  id            String       @id @default(cuid())
+  quizId        String
+  quiz          Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  type          QuestionType
+  text          String       @db.Text
+  options       Json?
+  correctAnswer Json
+  marks         Int          @default(1)
+  explanation   String?      @db.Text
+  order         Int
+
+  // Relations
+  attemptAnswers AttemptAnswer[]
+
+  @@index([quizId, order])
+  @@map("questions")
+}
+
+model QuizAssignment {
+  id            String   @id @default(cuid())
+  quizId        String
+  quiz          Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id])
+  assignedToAll Boolean  @default(false)
+  examId        String?
+  assignedAt    DateTime @default(now())
+
+  @@unique([quizId, userId])
+  @@index([userId])
+  @@map("quiz_assignments")
+}
+
+// ─────────────────────────────────────────
+// Member 4: Attempts, Results & Leaderboard
+// ─────────────────────────────────────────
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  TIMED_OUT
+}
+
+model Attempt {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  quizId         String
+  quiz           Quiz          @relation(fields: [quizId], references: [id])
+  status         AttemptStatus @default(IN_PROGRESS)
+  score          Int           @default(0)
+  totalMarks     Int           @default(0)
+  correctAnswers Int           @default(0)
+  totalQuestions Int           @default(0)
+  startedAt      DateTime      @default(now())
+  submittedAt    DateTime?
+  timeTaken      Int? // in seconds
+
+  // Relations
+  attemptAnswers AttemptAnswer[]
+
+  @@unique([userId, quizId])
+  @@map("attempts")
+}
+
+model AttemptAnswer {
+  id              String   @id @default(cuid())
+  attemptId       String
+  attempt         Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId      String
+  question        Question @relation(fields: [questionId], references: [id])
+  submittedAnswer Json
+  isCorrect       Boolean  @default(false)
+  marksAwarded    Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@map("attempt_answers")
+}
+
+model Leaderboard {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id])
+  totalScore         Int      @default(0)
+  quizzesTaken       Int      @default(0)
+  totalCorrect       Int      @default(0)
+  totalQuestions     Int      @default(0)
+  averageScorePercent Float   @default(0)
+  rank               Int?
+  updatedAt          DateTime @updatedAt
+
+  @@map("leaderboard")
+}
+
+model QuizLeaderboard {
+  id             String   @id @default(cuid())
+  quizId         String
+  quiz           Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  correctAnswers Int      @default(0)
+  totalQuestions Int      @default(0)
+  scorePercent   Float    @default(0)
+  timeTaken      Int      @default(0) // seconds
+  rank           Int?
+  submittedAt    DateTime @default(now())
+
+  @@unique([quizId, userId])
+  @@index([quizId, scorePercent, timeTaken])
+  @@map("quiz_leaderboard")
+}
+
+model TopicProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  topicId   String
+  topic     Topic    @relation(fields: [topicId], references: [id])
+  completed Boolean  @default(false)
+  viewedAt  DateTime @default(now())
+
+  @@unique([userId, topicId])
+  @@map("topic_progress")
+}
+
+// ─────────────────────────────────────────
+// Member 5: Exams
+// ─────────────────────────────────────────
+
+enum ExamStatus {
+  SCHEDULED
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+model Exam {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  createdById String
+  createdBy   User       @relation(fields: [createdById], references: [id])
+  status      ExamStatus @default(SCHEDULED)
+  scheduledAt DateTime
+  duration    Int // in minutes
+  totalMarks  Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  examQuizzes ExamQuiz[]
+
+  @@index([createdById])
+  @@map("exams")
+}
+
+model ExamQuiz {
+  id     String @id @default(cuid())
+  examId String
+  exam   Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+  quizId String
+  quiz   Quiz   @relation(fields: [quizId], references: [id])
+  order  Int    @default(0)
+
+  @@unique([examId, quizId])
+  @@map("exam_quizzes")
 }

@@ -21,6 +21,7 @@ export interface AuthenticatedUser {
   name: string;
   email: string;
   role: "ADMIN" | "MEMBER";
+  mustChangePassword: boolean;
   createdAt: Date;
 }
 
@@ -41,6 +42,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
       name: true,
       email: true,
       role: true,
+      mustChangePassword: true,
       createdAt: true,
       // passwordHash is intentionally excluded
     },
