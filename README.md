@@ -1,111 +1,244 @@
-# ArcCore ⚡ — Learn. Challenge. Evolve.
+# ArcCore ⚡
 
-ArcCore is a collaborative learning and quiz platform for a group of learners to share knowledge, create quizzes, test understanding, and track progress together.
+### Learn. Challenge. Evolve.
 
----
+ArcCore is a collaborative learning and quiz platform designed to help a group of learners share knowledge, create quizzes, test their understanding, and track their progress together.
 
-## 🧑‍💻 Member 4 — Quiz Attempts, Results & Leaderboard
+The platform combines topic presentations, interactive quizzes, automatic scoring, performance analytics, and competitive leaderboards in one place.
 
-This branch is owned by **Member 4** and covers:
+## 🎯 Project Objectives
 
-- Quiz attempt lifecycle (start → in-progress → submitted)
-- Server-side automatic scoring (never trusts client-submitted scores)
-- Answer review with correct answers and explanations
-- Results history (all past attempts)
-- Leaderboard ranked by total score
-- Personal progress dashboard with stats
+- Encourage collaborative learning through topic presentations.
+- Allow members to create quizzes based on what they learn.
+- Enable Admins to create quizzes and exams for the group.
+- Provide automatic scoring and detailed answer reviews.
+- Track individual learning progress and quiz performance.
+- Motivate members through leaderboards and achievements.
+- Provide a centralized platform for managing learning activities.
 
----
+## ✨ Features
 
-## 🗂️ Member 4 File Structure
+### 👤 Member Features
 
+- Secure registration and login.
+- Personalized member dashboard.
+- Create and share learning topics.
+- View topics presented by other members.
+- Create quizzes based on learning materials.
+- Take quizzes assigned to them or made available to the group.
+- View scores and correct or incorrect answers.
+- Review previous quiz attempts.
+- Track learning progress and performance.
+- View leaderboards and compare results with other members.
+
+### 🛡️ Admin Features
+
+- Manage user accounts and member access.
+- Create, manage, and publish group-wide quizzes.
+- Create and schedule group exams.
+- Assign assessments to selected members or the entire group.
+- Configure quiz deadlines, time limits, and marks.
+- Monitor quiz attempts and examination results.
+- View member performance and overall learning progress.
+- Access leaderboards and platform-wide analytics.
+
+### 📝 Quiz System
+
+ArcCore is planned to support the following question types:
+
+- Multiple-choice questions
+- True or false questions
+- Dropdown selection questions
+- Fill-in-the-blank questions
+- Matching questions
+
+Additional quiz capabilities include automatic scoring, configurable marks, deadlines, time limits, answer reviews, and attempt history.
+
+## 🧰 Technology Stack
+
+| Technology     | Purpose                           |
+| -------------- | --------------------------------- |
+| Next.js        | Application framework             |
+| TypeScript     | Type-safe development             |
+| React          | User interface                    |
+| Tailwind CSS   | Styling and responsive layouts    |
+| PostgreSQL     | Relational database               |
+| Git and GitHub | Version control and collaboration |
+
+The exact database access library, authentication solution, and deployment provider will be finalized during development.
+
+## 🏗️ Project Structure
+
+The planned project structure is:
+
+```text
+ArcCore/
+├── public/
+├── src/
+│   ├── app/
+│   │   ├── (auth)/
+│   │   ├── dashboard/
+│   │   ├── topics/
+│   │   ├── quizzes/
+│   │   ├── results/
+│   │   ├── leaderboard/
+│   │   └── api/
+│   ├── components/
+│   ├── features/
+│   │   ├── users/
+│   │   ├── topics/
+│   │   ├── quizzes/
+│   │   ├── results/
+│   │   ├── leaderboard/
+│   │   └── exams/
+│   └── lib/
+│       ├── auth/
+│       ├── db/
+│       └── validation/
+├── prisma/
+├── .env.example
+├── .gitignore
+├── package.json
+├── tsconfig.json
+└── README.md
 ```
-src/
-├── app/
-│   ├── dashboard/page.tsx         ← Member progress dashboard
-│   ├── results/
-│   │   ├── page.tsx               ← Quiz history list
-│   │   └── [attemptId]/page.tsx   ← Answer review page
-│   ├── leaderboard/page.tsx       ← Leaderboard
-│   └── api/
-│       ├── attempts/
-│       │   ├── route.ts           ← GET (list) / POST (start attempt)
-│       │   └── [attemptId]/
-│       │       ├── route.ts       ← GET (single attempt)
-│       │       └── submit/route.ts ← POST (submit + score)
-│       ├── leaderboard/route.ts   ← GET leaderboard
-│       └── progress/route.ts      ← GET user progress stats
-├── features/
-│   └── results/
-│       ├── types.ts               ← TypeScript types
-│       └── scoring.ts             ← Server-side scoring logic
-└── lib/
-    └── db/
-        └── prisma.ts              ← Shared Prisma client
-```
 
----
+This structure is a starting plan and may evolve as the project develops.
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (LTS)
-- PostgreSQL database
-- npm
 
-### Setup
+Install the following before running the project:
+
+- Node.js (LTS version recommended)
+- npm
+- Git
+- PostgreSQL
+
+### 1. Clone the Repository
 
 ```bash
-# 1. Clone the repo
 git clone https://github.com/YOUR-USERNAME/ArcCore.git
 cd ArcCore
+```
 
-# 2. Install dependencies
+Replace `YOUR-USERNAME` with the GitHub account or organization that owns the repository.
+
+### 2. Install Dependencies
+
+```bash
 npm install
+```
 
-# 3. Copy env file and fill in your PostgreSQL connection string
-cp .env.example .env
+### 3. Configure Environment Variables
 
-# 4. Generate Prisma client and run migrations
-npx prisma generate
-npx prisma migrate dev --name init
+Create a `.env` file in the project root and configure the required environment variables.
 
-# 5. Start dev server
+Example:
+
+```env
+DATABASE_URL="your_postgresql_connection_string"
+```
+
+Add other required variables when the authentication and database configuration are implemented.
+
+**Important:** Never commit `.env` files, database passwords, API keys, or other secrets to GitHub.
+
+### 4. Configure the Database
+
+Create a PostgreSQL database for ArcCore and configure its connection string.
+
+Run the project's database migration commands once the database library and migration setup have been established.
+
+### 5. Start the Development Server
+
+```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## 🤝 Contributing
+
+ArcCore is developed collaboratively. Contributors should follow the shared coding standards and development workflow.
+
+### Contribution Workflow
+
+1. Clone the repository.
+2. Create a new branch for your feature or bug fix.
+3. Implement and test your changes.
+4. Commit your changes with a meaningful commit message.
+5. Push your branch to GitHub.
+6. Open a Pull Request for review.
+7. Merge changes into `main` after approval and required checks.
+
+### Branch Naming
+
+Examples:
+
+```text
+feature/authentication
+feature/topic-management
+feature/quiz-builder
+feature/leaderboard
+feature/group-exams
+fix/quiz-scoring
+docs/update-readme
+```
+
+### Commit Message Examples
+
+```text
+feat: add quiz creation
+feat: implement topic management
+fix: correct quiz scoring
+docs: update project README
+refactor: improve dashboard components
+```
+
+### Collaboration Guidelines
+
+- Keep features separated into logical modules.
+- Follow the agreed database schema and API contracts.
+- Avoid committing directly to `main`.
+- Review Pull Requests before merging.
+- Test changes before submitting them.
+- Do not commit secrets or personal credentials.
+- Update documentation when project behavior changes.
+
+## 🔐 Security
+
+Security is an important part of ArcCore.
+
+- Authenticate users before granting access to protected features.
+- Enforce Admin and Member permissions on the server.
+- Validate submitted data on the server.
+- Calculate quiz scores on the server rather than trusting client-submitted scores.
+- Store passwords using secure password hashing when password-based authentication is implemented.
+- Protect sensitive configuration using environment variables.
+- Prevent users from accessing unauthorized quiz attempts or results.
+
+## 📌 Project Status
+
+**Status:** In Development
+
+ArcCore is being developed incrementally. Features described in this README represent the intended functionality and may not all be implemented yet.
+
+## 🛣️ Planned Development Milestones
+
+- [ ] Initialize the Next.js and TypeScript project.
+- [ ] Establish the PostgreSQL schema and migrations.
+- [ ] Implement authentication and role-based access.
+- [ ] Develop member and Admin dashboards.
+- [ ] Implement topic and learning-material management.
+- [ ] Develop the quiz builder and supported question types.
+- [ ] Implement quiz attempts, scoring, and answer review.
+- [ ] Build leaderboards and progress tracking.
+- [ ] Implement group exams and scheduling.
+- [ ] Add automated tests and security checks.
+- [ ] Deploy the application.
 
 ---
 
-## 🔗 API Endpoints (Member 4)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/attempts?userId=<id>` | List all attempts for a user |
-| `POST` | `/api/attempts` | Start a new attempt |
-| `GET` | `/api/attempts/[attemptId]?userId=<id>` | Get attempt with answers |
-| `POST` | `/api/attempts/[attemptId]/submit` | Submit answers (scores on server) |
-| `GET` | `/api/leaderboard` | Get ranked leaderboard |
-| `GET` | `/api/progress?userId=<id>` | Get user progress stats |
-
----
-
-## 🔐 Security Notes
-
-- Scores are **always calculated on the server** — client-submitted scores are never trusted.
-- Attempt ownership is verified before returning any data.
-- Quiz deadlines and published status are checked before allowing attempts.
-
----
-
-## 🤝 Integration Points
-
-| What | Who provides it |
-|------|----------------|
-| `userId` / session | Member 1 (Auth) |
-| Quiz data & questions | Member 3 (Quiz Engine) |
-| Topic progress tracking | Member 2 (Topics) |
-| CS analytics dashboard | Member 5 (Admin) |
-
-Replace `PLACEHOLDER_USER_ID` in page files with Member 1's `getServerSession()` once auth is ready.
+**ArcCore — Learn. Challenge. Evolve.** ⚡
