@@ -1,5 +1,3 @@
-// Per-Quiz Leaderboard — ranked by correct answers %, then time taken
-
 import { requireAuth } from "@/lib/auth/authorization";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
@@ -7,10 +5,7 @@ import Nav from "@/components/Nav";
 import Link from "next/link";
 import type { Metadata } from "next";
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
-
+interface PageProps { params: Promise<{ id: string }> }
 export const instant = false;
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -19,10 +14,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return { title: quiz ? `${quiz.title} Leaderboard — ArcCore` : "Quiz Leaderboard" };
 }
 
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+function formatTime(s: number) {
+  const m = Math.floor(s / 60);
+  return m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
 }
 
 export default async function QuizLeaderboardPage({ params }: PageProps) {
@@ -37,214 +31,169 @@ export default async function QuizLeaderboardPage({ params }: PageProps) {
 
   const entries = await prisma.quizLeaderboard.findMany({
     where: { quizId },
-    orderBy: [
-      { scorePercent: "desc" },
-      { timeTaken: "asc" },
-    ],
+    orderBy: [{ scorePercent: "desc" }, { timeTaken: "asc" }],
     include: { user: { select: { id: true, name: true } } },
   });
 
-  // Assign ranks with ties
   let currentRank = 1;
   const ranked = entries.map((entry, idx) => {
     if (idx > 0) {
       const prev = entries[idx - 1];
-      if (
-        entry.scorePercent < prev.scorePercent ||
-        (entry.scorePercent === prev.scorePercent && entry.timeTaken > prev.timeTaken)
-      ) {
+      if (entry.scorePercent < prev.scorePercent ||
+        (entry.scorePercent === prev.scorePercent && entry.timeTaken > prev.timeTaken))
         currentRank = idx + 1;
-      }
     }
     return { ...entry, rank: currentRank };
   });
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Nav user={user} />
+  const medals: Record<number, { color: string; icon: string }> = {
+    1: { color: "#f5c842", icon: "🥇" },
+    2: { color: "#c0c0c0", icon: "🥈" },
+    3: { color: "#cd7f32", icon: "🥉" },
+  };
 
-      <div className="max-w-2xl mx-auto px-4 py-10">
-        {/* Header */}
-        <div className="mb-2 flex items-center gap-2 text-sm text-gray-500">
-          <Link href="/quizzes" className="text-indigo-600 hover:underline">Quizzes</Link>
+  return (
+    <div className="min-h-screen" style={{ background: "#050c1a" }}>
+      <Nav user={user} />
+      <div className="max-w-3xl mx-auto px-5 pt-20 pb-12">
+
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-xs text-[#4a7098] pt-4 mb-6">
+          <Link href="/quizzes" className="text-[#4db8ff] hover:underline">Quizzes</Link>
           <span>/</span>
-          <span className="truncate">{quiz.title}</span>
+          <span className="truncate text-[#94b8d8]">{quiz.title}</span>
           <span>/</span>
           <span>Leaderboard</span>
         </div>
 
-        <div className="text-center mb-8 mt-4">
-          <h1 className="text-2xl font-bold text-gray-900">{quiz.title}</h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            Quiz Leaderboard — ranked by score %, then fastest completion time.
-          </p>
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-extrabold text-white">{quiz.title}</h1>
+          <p className="text-xs text-[#94b8d8] mt-1">Quiz Leaderboard · Score % then fastest time wins</p>
         </div>
 
+        {/* Top 3 podium */}
+        {ranked.length >= 2 && (
+          <div className="flex items-end justify-center gap-4 mb-8">
+            {ranked[1] && (
+              <div className="flex flex-col items-center">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold mb-1.5"
+                  style={{ background: "linear-gradient(135deg,#1e3a6e,#2a4a80)", border: "2px solid #c0c0c0" }}>
+                  {ranked[1].user.name.charAt(0).toUpperCase()}
+                </div>
+                <p className="text-xs text-white truncate max-w-[70px] text-center">{ranked[1].user.name}</p>
+                <p className="text-[10px] text-[#c0c0c0]">{ranked[1].scorePercent.toFixed(1)}%</p>
+                <div className="w-14 h-12 rounded-t-xl mt-1.5 flex items-center justify-center"
+                  style={{ background: "rgba(192,192,192,0.1)", border: "1px solid rgba(192,192,192,0.2)" }}>
+                  <span className="text-[#c0c0c0] font-bold text-xs">#2</span>
+                </div>
+              </div>
+            )}
+            <div className="flex flex-col items-center -mt-4">
+              <div className="text-xl mb-1">👑</div>
+              <div className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold mb-1.5"
+                style={{ background: "linear-gradient(135deg,#1e3a6e,#4db8ff30)", border: "2px solid #f5c842", boxShadow: "0 0 16px rgba(245,200,66,0.3)" }}>
+                {ranked[0].user.name.charAt(0).toUpperCase()}
+              </div>
+              <p className="text-sm font-bold text-white truncate max-w-[80px] text-center">{ranked[0].user.name}</p>
+              <p className="text-xs text-[#f5c842] font-semibold">{ranked[0].scorePercent.toFixed(1)}%</p>
+              <div className="w-14 h-20 rounded-t-xl mt-1.5 flex items-center justify-center"
+                style={{ background: "rgba(245,200,66,0.12)", border: "1px solid rgba(245,200,66,0.2)" }}>
+                <span className="text-[#f5c842] font-extrabold">#1</span>
+              </div>
+            </div>
+            {ranked[2] && (
+              <div className="flex flex-col items-center">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold mb-1.5"
+                  style={{ background: "linear-gradient(135deg,#1e3a6e,#2a4a80)", border: "2px solid #cd7f32" }}>
+                  {ranked[2].user.name.charAt(0).toUpperCase()}
+                </div>
+                <p className="text-xs text-white truncate max-w-[70px] text-center">{ranked[2].user.name}</p>
+                <p className="text-[10px] text-[#cd7f32]">{ranked[2].scorePercent.toFixed(1)}%</p>
+                <div className="w-14 h-8 rounded-t-xl mt-1.5 flex items-center justify-center"
+                  style={{ background: "rgba(205,127,50,0.1)", border: "1px solid rgba(205,127,50,0.2)" }}>
+                  <span className="text-[#cd7f32] font-bold text-xs">#3</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {ranked.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow p-12 text-center text-gray-400">
-            No one has completed this quiz yet.{" "}
+          <div className="arc-card p-12 text-center">
+            <div className="text-4xl mb-3">🎯</div>
+            <p className="text-[#94b8d8] text-sm">No one has completed this quiz yet.</p>
             {quiz.status === "PUBLISHED" && (
-              <Link href={`/quizzes/${quizId}/take`} className="text-indigo-600 hover:underline">
-                Be the first →
-              </Link>
+              <Link href={`/quizzes/${quizId}/take`} className="arc-btn mt-4 text-xs inline-flex">Be the first →</Link>
             )}
           </div>
         ) : (
-          <>
-            {/* Top 3 podium */}
-            {ranked.length >= 1 && (
-              <div className="flex items-end justify-center gap-4 mb-8">
-                {/* 2nd place */}
-                {ranked[1] && (
-                  <div className="flex flex-col items-center">
-                    <div className="text-2xl mb-1">
-                      <CrownIcon color="#C0C0C0" size={28} />
-                    </div>
-                    <div className="w-20 h-20 rounded-full bg-gray-200 border-4 border-gray-300 flex items-center justify-center text-xl font-bold text-gray-600">
-                      {ranked[1].user.name.slice(0, 1).toUpperCase()}
-                    </div>
-                    <p className="text-sm font-semibold text-gray-700 mt-1 truncate max-w-[80px] text-center">
-                      {ranked[1].user.name}
-                    </p>
-                    <p className="text-xs text-gray-500">{ranked[1].scorePercent.toFixed(1)}%</p>
-                    <div className="bg-gray-200 w-16 h-16 rounded-t-lg mt-1 flex items-end justify-center pb-1">
-                      <span className="text-gray-600 font-bold text-sm">#2</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* 1st place */}
-                <div className="flex flex-col items-center">
-                  <div className="text-3xl mb-1">
-                    <CrownIcon color="#F5D060" size={36} />
-                  </div>
-                  <div className="w-24 h-24 rounded-full bg-yellow-100 border-4 border-yellow-400 flex items-center justify-center text-2xl font-bold text-yellow-700">
-                    {ranked[0].user.name.slice(0, 1).toUpperCase()}
-                  </div>
-                  <p className="text-sm font-bold text-gray-900 mt-1 truncate max-w-[96px] text-center">
-                    {ranked[0].user.name}
-                    {ranked[0].userId === user.id && (
-                      <span className="ml-1 text-xs text-indigo-500 font-normal">(you)</span>
-                    )}
-                  </p>
-                  <p className="text-xs text-yellow-700 font-semibold">{ranked[0].scorePercent.toFixed(1)}%</p>
-                  <div className="bg-yellow-400 w-16 h-24 rounded-t-lg mt-1 flex items-end justify-center pb-1">
-                    <span className="text-white font-bold">#1</span>
-                  </div>
-                </div>
-
-                {/* 3rd place */}
-                {ranked[2] && (
-                  <div className="flex flex-col items-center">
-                    <div className="text-2xl mb-1">
-                      <CrownIcon color="#CD7F32" size={28} />
-                    </div>
-                    <div className="w-20 h-20 rounded-full bg-amber-100 border-4 border-amber-400 flex items-center justify-center text-xl font-bold text-amber-700">
-                      {ranked[2].user.name.slice(0, 1).toUpperCase()}
-                    </div>
-                    <p className="text-sm font-semibold text-gray-700 mt-1 truncate max-w-[80px] text-center">
-                      {ranked[2].user.name}
-                    </p>
-                    <p className="text-xs text-amber-700">{ranked[2].scorePercent.toFixed(1)}%</p>
-                    <div className="bg-amber-400 w-16 h-12 rounded-t-lg mt-1 flex items-end justify-center pb-1">
-                      <span className="text-white font-bold text-sm">#3</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Full table */}
-            <div className="bg-white rounded-2xl shadow overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-indigo-50 text-indigo-700 uppercase text-xs">
-                  <tr>
-                    <th className="px-5 py-3 text-left">Rank</th>
-                    <th className="px-5 py-3 text-left">Member</th>
-                    <th className="px-5 py-3 text-right">Correct</th>
-                    <th className="px-5 py-3 text-right">Score</th>
-                    <th className="px-5 py-3 text-right">Time</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {ranked.map((entry) => {
-                    const isMe = entry.userId === user.id;
-                    return (
-                      <tr
-                        key={entry.userId}
-                        className={isMe ? "bg-indigo-50 font-semibold" : "hover:bg-gray-50"}
-                      >
-                        <td className="px-5 py-3">
-                          <RankBadge rank={entry.rank} />
-                        </td>
-                        <td className="px-5 py-3 text-gray-900">
-                          {entry.user.name}
-                          {isMe && (
-                            <span className="ml-1.5 text-xs text-indigo-500 font-normal">(you)</span>
-                          )}
-                        </td>
-                        <td className="px-5 py-3 text-right text-gray-600">
-                          {entry.correctAnswers}/{entry.totalQuestions}
-                        </td>
-                        <td className="px-5 py-3 text-right">
-                          <span
-                            className={`font-bold ${
-                              entry.scorePercent >= 70
-                                ? "text-green-600"
-                                : entry.scorePercent >= 50
-                                ? "text-yellow-600"
-                                : "text-red-500"
-                            }`}
-                          >
-                            {entry.scorePercent.toFixed(1)}%
+          <div className="arc-card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ background: "rgba(30,58,110,0.3)", borderBottom: "1px solid rgba(30,58,110,0.4)" }}>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-[#4db8ff] uppercase">Rank</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-[#4db8ff] uppercase">Member</th>
+                  <th className="px-5 py-3 text-right text-xs font-semibold text-[#4db8ff] uppercase">Correct</th>
+                  <th className="px-5 py-3 text-right text-xs font-semibold text-[#4db8ff] uppercase">Score</th>
+                  <th className="px-5 py-3 text-right text-xs font-semibold text-[#4db8ff] uppercase">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ranked.map((entry, i) => {
+                  const isMe = entry.userId === user.id;
+                  const medal = medals[entry.rank];
+                  return (
+                    <tr key={entry.userId}
+                      style={{
+                        background: isMe ? "rgba(77,184,255,0.06)" : i % 2 === 0 ? "transparent" : "rgba(10,22,40,0.3)",
+                        borderBottom: "1px solid rgba(30,58,110,0.2)",
+                      }}>
+                      <td className="px-5 py-3.5">
+                        {medal ? (
+                          <span className="flex items-center gap-1">
+                            <span>{medal.icon}</span>
+                            <span className="text-xs font-bold" style={{ color: medal.color }}>#{entry.rank}</span>
                           </span>
-                        </td>
-                        <td className="px-5 py-3 text-right text-gray-500 font-mono text-xs">
-                          {formatTime(entry.timeTaken)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
+                        ) : <span className="text-sm text-[#94b8d8]">#{entry.rank}</span>}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                            style={{ background: "linear-gradient(135deg,#1e3a6e,#4db8ff40)" }}>
+                            {entry.user.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-sm text-white">
+                            {entry.user.name}
+                            {isMe && <span className="ml-1 text-xs text-[#4db8ff]">(you)</span>}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-right text-xs text-[#94b8d8]">
+                        {entry.correctAnswers}/{entry.totalQuestions}
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <span className="text-sm font-extrabold"
+                          style={{ color: entry.scorePercent >= 70 ? "#00d4aa" : entry.scorePercent >= 50 ? "#f5c842" : "#ff4d6d" }}>
+                          {entry.scorePercent.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right text-xs font-mono text-[#94b8d8]">
+                        {formatTime(entry.timeTaken)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
 
-        <div className="mt-8 flex justify-center gap-4">
-          <Link href="/quizzes" className="text-sm text-indigo-600 hover:underline">
-            ← Quizzes
-          </Link>
-          <Link href="/leaderboard" className="text-sm text-indigo-600 hover:underline">
-            Overall Leaderboard →
-          </Link>
+        <div className="flex justify-center gap-4 mt-8">
+          <Link href="/quizzes" className="arc-btn-outline text-xs">← Quizzes</Link>
+          <Link href="/leaderboard" className="arc-btn text-xs">Overall Leaderboard →</Link>
         </div>
       </div>
     </div>
-  );
-}
-
-function RankBadge({ rank }: { rank: number }) {
-  if (rank === 1) return <span className="inline-flex items-center gap-1"><CrownIcon color="#F5D060" size={16} /><span className="font-bold text-yellow-600">#1</span></span>;
-  if (rank === 2) return <span className="inline-flex items-center gap-1"><CrownIcon color="#C0C0C0" size={16} /><span className="font-bold text-gray-500">#2</span></span>;
-  if (rank === 3) return <span className="inline-flex items-center gap-1"><CrownIcon color="#CD7F32" size={16} /><span className="font-bold text-amber-700">#3</span></span>;
-  return <span className="font-medium text-gray-500">#{rank}</span>;
-}
-
-function CrownIcon({ color, size = 20 }: { color: string; size?: number }) {
-  return (
-    <svg width={size} height={size * 0.8} viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M2 14h16M2 14L0 4l5 4 5-6 5 6 5-4-2 10H2z"
-        stroke={color}
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-        fill={color}
-        fillOpacity="0.25"
-      />
-      <circle cx="10" cy="2" r="1.5" fill={color} />
-      <circle cx="0.5" cy="4" r="1" fill={color} />
-      <circle cx="19.5" cy="4" r="1" fill={color} />
-    </svg>
   );
 }

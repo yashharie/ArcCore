@@ -1,13 +1,7 @@
 "use client";
-
 import { useState } from "react";
 
-interface Props {
-  topicId: string;
-  initialCompleted: boolean;
-}
-
-export default function MarkCompleteButton({ topicId, initialCompleted }: Props) {
+export default function MarkCompleteButton({ topicId, initialCompleted }: { topicId: string; initialCompleted: boolean }) {
   const [completed, setCompleted] = useState(initialCompleted);
   const [loading, setLoading] = useState(false);
 
@@ -18,22 +12,14 @@ export default function MarkCompleteButton({ topicId, initialCompleted }: Props)
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ completed: !completed }),
     });
-    if (res.ok) {
-      setCompleted(!completed);
-    }
+    if (res.ok) setCompleted(!completed);
     setLoading(false);
   }
 
   return (
-    <button
-      onClick={toggle}
-      disabled={loading}
-      className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
-        completed
-          ? "bg-green-100 text-green-700 hover:bg-green-200"
-          : "bg-indigo-600 text-white hover:bg-indigo-700"
-      }`}
-    >
+    <button onClick={toggle} disabled={loading}
+      className="arc-btn text-xs disabled:opacity-50"
+      style={completed ? { background: "rgba(0,212,170,0.15)", color: "#00d4aa", border: "1px solid rgba(0,212,170,0.3)" } : {}}>
       {loading ? "…" : completed ? "✓ Completed" : "Mark as Complete"}
     </button>
   );

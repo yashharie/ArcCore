@@ -1,16 +1,10 @@
-// Exams page — list all upcoming and past exams
-
 import { requireAuth } from "@/lib/auth/authorization";
 import { prisma } from "@/lib/prisma";
 import Nav from "@/components/Nav";
 import Link from "next/link";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Exams — ArcCore",
-  description: "Group exams scheduled by admins.",
-};
-
+export const metadata: Metadata = { title: "Exams — ArcCore" };
 export const instant = false;
 
 export default async function ExamsPage() {
@@ -19,7 +13,7 @@ export default async function ExamsPage() {
   const where =
     user.role === "ADMIN"
       ? {}
-      : { status: { in: (["SCHEDULED", "ONGOING", "COMPLETED"] as string[]) as ("SCHEDULED" | "ONGOING" | "COMPLETED")[] } };
+      : { status: { in: ["SCHEDULED", "ONGOING", "COMPLETED"] as ("SCHEDULED" | "ONGOING" | "COMPLETED")[] } };
 
   const exams = await prisma.exam.findMany({
     where,
@@ -27,141 +21,92 @@ export default async function ExamsPage() {
     include: {
       createdBy: { select: { name: true } },
       examQuizzes: {
-        include: {
-          quiz: { select: { id: true, title: true, _count: { select: { questions: true } } } },
-        },
+        include: { quiz: { select: { id: true, title: true, _count: { select: { questions: true } } } } },
         orderBy: { order: "asc" },
       },
     },
   });
 
-  const statusColors: Record<string, string> = {
-    SCHEDULED: "bg-blue-100 text-blue-700",
-    ONGOING: "bg-green-100 text-green-700",
-    COMPLETED: "bg-gray-100 text-gray-600",
-    CANCELLED: "bg-red-100 text-red-600",
+  const statusStyle: Record<string, { bg: string; color: string }> = {
+    SCHEDULED:  { bg: "rgba(77,184,255,0.12)",  color: "#4db8ff"  },
+    ONGOING:    { bg: "rgba(0,212,170,0.12)",   color: "#00d4aa"  },
+    COMPLETED:  { bg: "rgba(148,184,216,0.08)", color: "#94b8d8"  },
+    CANCELLED:  { bg: "rgba(255,77,109,0.1)",   color: "#ff4d6d"  },
   };
 
   const now = new Date();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: "#050c1a" }}>
       <Nav user={user} />
+      <div className="max-w-5xl mx-auto px-5 pt-20 pb-12">
 
-      <div className="max-w-4xl mx-auto px-4 py-10">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="flex items-center justify-between pt-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">📋 Exams</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {user.role === "ADMIN"
-                ? "All scheduled and past group exams."
-                : "Upcoming and past group exams."}
-            </p>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="h-px w-6 bg-[#f5c842]" />
+              <span className="text-xs font-semibold tracking-widest text-[#f5c842] uppercase">Examinations</span>
+            </div>
+            <h1 className="text-2xl font-extrabold text-white">Exams</h1>
+            <p className="text-xs text-[#94b8d8] mt-0.5">Group assessments scheduled by admins</p>
           </div>
           {user.role === "ADMIN" && (
-            <Link
-              href="/exams/new"
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
-            >
-              + New Exam
-            </Link>
+            <Link href="/exams/new" className="arc-btn text-xs">+ New Exam</Link>
           )}
         </div>
 
         {exams.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-16 text-center">
+          <div className="arc-card p-16 text-center">
             <div className="text-5xl mb-4">📋</div>
-            <p className="text-gray-500 text-sm">No exams scheduled yet.</p>
+            <p className="text-[#94b8d8] text-sm">No exams scheduled yet.</p>
             {user.role === "ADMIN" && (
-              <Link
-                href="/exams/new"
-                className="mt-4 inline-block text-sm text-indigo-600 hover:underline"
-              >
-                Schedule an exam →
-              </Link>
+              <Link href="/exams/new" className="arc-btn mt-4 text-xs inline-flex">Schedule an exam</Link>
             )}
           </div>
         ) : (
           <div className="space-y-4">
             {exams.map((exam) => {
+              const s = statusStyle[exam.status] ?? statusStyle.SCHEDULED;
               const isPast = new Date(exam.scheduledAt) < now;
+
               return (
-                <div
-                  key={exam.id}
-                  className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm"
-                >
+                <div key={exam.id} className="arc-card p-6 hover:border-[#4db8ff]/30 transition-colors">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                            statusColors[exam.status] ?? "bg-gray-100 text-gray-600"
-                          }`}
-                        >
-                          {exam.status}
-                        </span>
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold"
+                          style={{ background: s.bg, color: s.color }}>{exam.status}</span>
                         {isPast && exam.status === "SCHEDULED" && (
-                          <span className="text-xs text-orange-500 font-medium">
-                            Overdue
-                          </span>
+                          <span className="text-[10px] text-[#f5c842]">Overdue</span>
                         )}
                       </div>
-                      <h2 className="text-lg font-semibold text-gray-900">
-                        {exam.title}
-                      </h2>
+                      <h2 className="text-base font-bold text-white">{exam.title}</h2>
                       {exam.description && (
-                        <p className="text-sm text-gray-500 mt-1">{exam.description}</p>
+                        <p className="text-xs text-[#94b8d8] mt-1">{exam.description}</p>
                       )}
-                      <div className="mt-2 flex flex-wrap gap-4 text-xs text-gray-400">
-                        <span>
-                          📅{" "}
-                          {new Date(exam.scheduledAt).toLocaleDateString(undefined, {
-                            weekday: "short",
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                        <span>⏱️ {exam.duration} minutes</span>
+                      <div className="flex flex-wrap gap-4 mt-3 text-xs text-[#4a7098]">
+                        <span>📅 {new Date(exam.scheduledAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                        <span>⏱️ {exam.duration} min</span>
                         <span>📊 {exam.totalMarks} marks</span>
                         <span>By {exam.createdBy.name}</span>
                       </div>
                     </div>
-
-                    <div className="flex flex-col gap-2 shrink-0">
-                      <Link
-                        href={`/exams/${exam.id}`}
-                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors text-center"
-                      >
-                        Details
-                      </Link>
+                    <div className="flex flex-col gap-2">
+                      <Link href={`/exams/${exam.id}`} className="arc-btn-outline text-xs px-3 py-1.5">Details</Link>
                       {user.role === "ADMIN" && (
-                        <Link
-                          href={`/exams/${exam.id}/edit`}
-                          className="rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 transition-colors text-center"
-                        >
-                          Manage
-                        </Link>
+                        <Link href={`/exams/${exam.id}/edit`} className="arc-btn text-xs px-3 py-1.5">Manage</Link>
                       )}
                     </div>
                   </div>
 
-                  {/* Quizzes in exam */}
                   {exam.examQuizzes.length > 0 && (
-                    <div className="mt-4 border-t border-gray-100 pt-4">
-                      <p className="text-xs font-medium text-gray-500 mb-2">
-                        {exam.examQuizzes.length} Quiz
-                        {exam.examQuizzes.length !== 1 ? "zes" : ""} in this exam:
-                      </p>
+                    <div className="mt-4 pt-4 border-t border-white/5">
+                      <p className="text-xs text-[#4a7098] mb-2">{exam.examQuizzes.length} quiz{exam.examQuizzes.length !== 1 ? "zes" : ""}</p>
                       <div className="flex flex-wrap gap-2">
                         {exam.examQuizzes.map((eq) => (
-                          <span
-                            key={eq.id}
-                            className="rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs text-indigo-700"
-                          >
-                            {eq.quiz.title} ({eq.quiz._count.questions} Qs)
+                          <span key={eq.id} className="text-xs px-2.5 py-1 rounded-full"
+                            style={{ background: "rgba(77,184,255,0.08)", border: "1px solid rgba(77,184,255,0.15)", color: "#94b8d8" }}>
+                            {eq.quiz.title}
                           </span>
                         ))}
                       </div>

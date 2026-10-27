@@ -5,60 +5,36 @@ import Nav from "@/components/Nav";
 import Link from "next/link";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Quiz Results — ArcCore",
-  description: "View your quiz results and answer review.",
-};
-
-interface PageProps {
-  params: Promise<{ attemptId: string }>;
-}
-
+export const metadata: Metadata = { title: "Quiz Results — ArcCore" };
 export const instant = false;
 
-// Human-readable rendering of answers and correct answers by question type
-function formatAnswer(
-  type: string,
-  answer: unknown,
-  options: unknown
-): string {
+interface PageProps { params: Promise<{ attemptId: string }> }
+
+function formatAnswer(type: string, answer: unknown, options: unknown): string {
   if (answer === null || answer === undefined) return "No answer";
-
   const ans = answer as Record<string, unknown>;
-  const opts = options as
-    | { id: string; text: string }[]
-    | { left: { id: string; text: string }[]; right: { id: string; text: string }[] }
-    | { caseSensitive?: boolean }
-    | null;
-
+  const opts = options as { id: string; text: string }[] | { left: { id: string; text: string }[]; right: { id: string; text: string }[] } | null;
   switch (type) {
-    case "MCQ":
-    case "DROPDOWN": {
-      const optList = opts as { id: string; text: string }[] | null;
-      const matched = optList?.find((o) => o.id === ans.optionId);
-      return matched ? matched.text : String(ans.optionId ?? "—");
+    case "MCQ": case "DROPDOWN": {
+      const list = opts as { id: string; text: string }[] | null;
+      return list?.find((o) => o.id === ans.optionId)?.text ?? String(ans.optionId ?? "—");
     }
-    case "TRUE_FALSE":
-      return ans.value === true ? "True" : ans.value === false ? "False" : "—";
+    case "TRUE_FALSE": return ans.value === true ? "True" : ans.value === false ? "False" : "—";
     case "FILL_BLANK": {
       const blanks = ans.blanks as string[] | undefined;
-      if (!blanks) return "—";
-      return blanks.map((b, i) => `Blank ${i + 1}: "${b}"`).join(", ");
+      return blanks ? blanks.map((b, i) => `Blank ${i + 1}: "${b}"`).join(", ") : "—";
     }
     case "MATCHING": {
       const pairs = ans.pairs as { left: string; right: string }[] | undefined;
       if (!pairs) return "—";
-      const matchOpts = opts as { left: { id: string; text: string }[]; right: { id: string; text: string }[] } | null;
-      return pairs
-        .map((p) => {
-          const leftText = matchOpts?.left?.find((l) => l.id === p.left)?.text ?? p.left;
-          const rightText = matchOpts?.right?.find((r) => r.id === p.right)?.text ?? p.right;
-          return `${leftText} → ${rightText}`;
-        })
-        .join(", ");
+      const mo = opts as { left: { id: string; text: string }[]; right: { id: string; text: string }[] } | null;
+      return pairs.map((p) => {
+        const l = mo?.left?.find((x) => x.id === p.left)?.text ?? p.left;
+        const r = mo?.right?.find((x) => x.id === p.right)?.text ?? p.right;
+        return `${l} → ${r}`;
+      }).join(", ");
     }
-    default:
-      return JSON.stringify(answer);
+    default: return JSON.stringify(answer);
   }
 }
 
@@ -69,26 +45,11 @@ export default async function ResultPage({ params }: PageProps) {
   const attempt = await prisma.attempt.findUnique({
     where: { id: attemptId },
     include: {
-      quiz: {
-        select: {
-          id: true,
-          title: true,
-          description: true,
-        },
-      },
+      quiz: { select: { id: true, title: true, description: true } },
       attemptAnswers: {
         include: {
           question: {
-            select: {
-              id: true,
-              text: true,
-              type: true,
-              options: true,
-              correctAnswer: true,
-              marks: true,
-              explanation: true,
-              order: true,
-            },
+            select: { id: true, text: true, type: true, options: true, correctAnswer: true, marks: true, explanation: true, order: true },
           },
         },
         orderBy: { question: { order: "asc" } },
@@ -98,122 +59,127 @@ export default async function ResultPage({ params }: PageProps) {
   });
 
   if (!attempt) notFound();
-
-  // Only the owner or admin can view
   if (attempt.userId !== user.id && user.role !== "ADMIN") {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 font-semibold">
-            You do not have permission to view this result.
-          </p>
-          <Link href="/dashboard" className="mt-4 inline-block text-sm text-indigo-600 hover:underline">
-            ← Back to Dashboard
-          </Link>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#050c1a" }}>
+        <div className="arc-card p-10 text-center max-w-sm">
+          <div className="text-4xl mb-3">🔒</div>
+          <p className="text-white font-semibold mb-4">You don't have permission to view this result.</p>
+          <Link href="/dashboard" className="arc-btn text-xs">← Dashboard</Link>
         </div>
       </div>
     );
   }
 
-  const percentage =
-    attempt.totalMarks > 0
-      ? Math.round((attempt.score / attempt.totalMarks) * 100)
-      : 0;
-
+  const percentage = attempt.totalMarks > 0
+    ? Math.round((attempt.score / attempt.totalMarks) * 100) : 0;
   const passed = percentage >= 50;
+  const correct = attempt.attemptAnswers.filter((a) => a.isCorrect).length;
+  const total = attempt.attemptAnswers.length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: "#050c1a" }}>
       <Nav user={user} />
-      <div className="max-w-3xl mx-auto px-4 py-10">
-        {/* Score Card */}
-        <div className="bg-white rounded-2xl shadow p-8 mb-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">
-            {attempt.quiz.title}
-          </h1>
-          <p className="text-gray-400 text-sm mb-6">Quiz Results</p>
+      <div className="max-w-3xl mx-auto px-5 pt-20 pb-12">
 
-          <div
-            className={`inline-flex items-center justify-center w-32 h-32 rounded-full text-3xl font-bold border-8 ${
-              passed
-                ? "border-green-400 text-green-600 bg-green-50"
-                : "border-red-400 text-red-500 bg-red-50"
-            }`}
-          >
-            {percentage}%
+        {/* Score card */}
+        <div className="arc-card p-8 mb-6 text-center relative overflow-hidden">
+          <div className="absolute inset-0 opacity-10">
+            <img src="/city-hero.png" alt="" className="w-full h-full object-cover" />
           </div>
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom,transparent,#0a1628)" }} />
 
-          <p className="mt-4 text-xl font-semibold text-gray-700">
-            {attempt.score} / {attempt.totalMarks} marks
-          </p>
+          <div className="relative z-10">
+            <h1 className="text-lg font-bold text-white mb-1">{attempt.quiz.title}</h1>
+            <p className="text-xs text-[#94b8d8] mb-6">Quiz Results</p>
 
-          <p
-            className={`mt-2 text-lg font-medium ${
-              passed ? "text-green-600" : "text-red-500"
-            }`}
-          >
-            {passed ? "🎉 Well done!" : "Keep practising!"}
-          </p>
+            {/* Circular score */}
+            <div className="relative inline-flex items-center justify-center w-32 h-32 mb-4">
+              <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 128 128">
+                <circle cx="64" cy="64" r="56" fill="none" stroke="rgba(30,58,110,0.4)" strokeWidth="8" />
+                <circle cx="64" cy="64" r="56" fill="none"
+                  stroke={passed ? "#00d4aa" : "#ff4d6d"}
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 56}`}
+                  strokeDashoffset={`${2 * Math.PI * 56 * (1 - percentage / 100)}`}
+                  style={{ transition: "stroke-dashoffset 1s ease" }}
+                />
+              </svg>
+              <div className="text-center">
+                <p className="text-3xl font-extrabold" style={{ color: passed ? "#00d4aa" : "#ff4d6d" }}>{percentage}%</p>
+                <p className="text-xs text-[#94b8d8]">{attempt.score}/{attempt.totalMarks}</p>
+              </div>
+            </div>
 
-          {attempt.timeTaken !== null && (
-            <p className="mt-2 text-sm text-gray-400">
-              Time taken: {Math.floor(attempt.timeTaken / 60)}m{" "}
-              {attempt.timeTaken % 60}s
+            <p className="text-lg font-bold mb-2" style={{ color: passed ? "#00d4aa" : "#ff4d6d" }}>
+              {passed ? "🎉 Well done!" : "Keep practising!"}
             </p>
-          )}
+
+            <div className="flex items-center justify-center gap-6 text-sm">
+              <div className="text-center">
+                <p className="font-bold text-white">{correct}/{total}</p>
+                <p className="text-xs text-[#94b8d8]">Correct</p>
+              </div>
+              {attempt.timeTaken !== null && (
+                <div className="text-center">
+                  <p className="font-bold text-white">{Math.floor(attempt.timeTaken / 60)}m {attempt.timeTaken % 60}s</p>
+                  <p className="text-xs text-[#94b8d8]">Time taken</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Answer Review */}
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">Answer Review</h2>
+        {/* Answer review */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-bold text-white">Answer Review</h2>
+          <span className="text-xs text-[#94b8d8]">{correct}/{total} correct</span>
+        </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {attempt.attemptAnswers.map((aa, index) => (
-            <div
-              key={aa.id}
-              className={`bg-white rounded-xl shadow-sm p-6 border-l-4 ${
-                aa.isCorrect ? "border-green-400" : "border-red-400"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <p className="font-medium text-gray-900">
-                  <span className="text-gray-400 mr-2">{index + 1}.</span>
+            <div key={aa.id} className="arc-card p-5"
+              style={{ borderLeft: `3px solid ${aa.isCorrect ? "#00d4aa" : "#ff4d6d"}` }}>
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <p className="text-sm font-medium text-white">
+                  <span className="text-[#4a7098] mr-2">{index + 1}.</span>
                   {aa.question.text}
                 </p>
-                <span
-                  className={`shrink-0 text-xs font-bold px-2.5 py-1 rounded-full ${
-                    aa.isCorrect
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-600"
-                  }`}
-                >
-                  {aa.isCorrect ? "✓ Correct" : "✗ Incorrect"}
+                <span className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-full"
+                  style={{
+                    background: aa.isCorrect ? "rgba(0,212,170,0.12)" : "rgba(255,77,109,0.12)",
+                    color: aa.isCorrect ? "#00d4aa" : "#ff4d6d",
+                  }}>
+                  {aa.isCorrect ? "✓ Correct" : "✗ Wrong"}
                 </span>
               </div>
 
-              <div className="mt-3 text-sm space-y-1.5">
-                <p className="text-gray-500">
-                  <span className="font-medium">Your answer:</span>{" "}
-                  <span className={aa.isCorrect ? "text-green-600" : "text-red-500"}>
+              <div className="space-y-1.5 text-xs">
+                <div className="flex gap-2">
+                  <span className="text-[#94b8d8] shrink-0">Your answer:</span>
+                  <span style={{ color: aa.isCorrect ? "#00d4aa" : "#ff4d6d" }}>
                     {formatAnswer(aa.question.type, aa.submittedAnswer, aa.question.options)}
                   </span>
-                </p>
+                </div>
                 {!aa.isCorrect && (
-                  <p className="text-gray-500">
-                    <span className="font-medium">Correct answer:</span>{" "}
-                    <span className="text-green-600">
+                  <div className="flex gap-2">
+                    <span className="text-[#94b8d8] shrink-0">Correct answer:</span>
+                    <span style={{ color: "#00d4aa" }}>
                       {formatAnswer(aa.question.type, aa.question.correctAnswer, aa.question.options)}
                     </span>
-                  </p>
+                  </div>
                 )}
-                <p className="text-gray-500">
-                  <span className="font-medium">Marks:</span>{" "}
-                  {aa.marksAwarded} / {aa.question.marks}
-                </p>
+                <div className="flex gap-2">
+                  <span className="text-[#94b8d8] shrink-0">Marks:</span>
+                  <span className="text-white">{aa.marksAwarded}/{aa.question.marks}</span>
+                </div>
               </div>
 
               {aa.question.explanation && (
-                <div className="mt-3 bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700">
-                  <span className="font-medium">Explanation: </span>
+                <div className="mt-3 p-3 rounded-xl text-xs"
+                  style={{ background: "rgba(77,184,255,0.06)", border: "1px solid rgba(77,184,255,0.15)", color: "#94b8d8" }}>
+                  <span className="text-[#4db8ff] font-semibold">💡 Explanation: </span>
                   {aa.question.explanation}
                 </div>
               )}
@@ -221,26 +187,10 @@ export default async function ResultPage({ params }: PageProps) {
           ))}
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-4 mt-8 justify-center flex-wrap">
-          <Link
-            href="/dashboard"
-            className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
-          >
-            Back to Dashboard
-          </Link>
-          <Link
-            href={`/quizzes/${attempt.quiz.id}/leaderboard`}
-            className="bg-white text-indigo-600 border border-indigo-300 px-6 py-3 rounded-lg font-semibold hover:bg-indigo-50 transition-colors"
-          >
-            Quiz Leaderboard
-          </Link>
-          <Link
-            href="/leaderboard"
-            className="bg-white text-gray-600 border border-gray-300 px-6 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
-          >
-            Overall Leaderboard
-          </Link>
+        <div className="flex gap-3 mt-8 justify-center flex-wrap">
+          <Link href="/dashboard" className="arc-btn text-xs px-6">← Dashboard</Link>
+          <Link href={`/quizzes/${attempt.quiz.id}/leaderboard`} className="arc-btn-outline text-xs px-6">Quiz Leaderboard</Link>
+          <Link href="/leaderboard" className="arc-btn-outline text-xs px-6">Overall Leaderboard</Link>
         </div>
       </div>
     </div>
