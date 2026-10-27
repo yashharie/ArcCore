@@ -19,13 +19,14 @@ import { getCurrentUser, type AuthenticatedUser } from "./getCurrentUser";
 /**
  * Require an authenticated session.
  * Returns the current user, or redirects to /login if unauthenticated.
- * If the user must change their password, redirects to /change-password.
+ * If the user must change their password AND they are not an admin, redirects to /change-password.
  * Use in Server Components and Server Actions.
  */
 export async function requireAuth(): Promise<AuthenticatedUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.mustChangePassword) redirect("/change-password");
+  // Admin accounts never get forced password changes
+  if (user.mustChangePassword && user.role !== "ADMIN") redirect("/change-password");
   return user;
 }
 

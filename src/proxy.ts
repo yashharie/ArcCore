@@ -21,6 +21,7 @@ const PROTECTED_PREFIXES = [
   "/leaderboard",
   "/exams",
   "/admin",
+  "/change-password",
 ];
 
 // Auth routes — authenticated users should not see the login page

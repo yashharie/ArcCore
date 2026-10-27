@@ -82,11 +82,11 @@ export async function login(
 
   await createSession({ userId: user.id, role: user.role });
 
-  if (user.mustChangePassword) {
+  if (user.mustChangePassword && user.role !== "ADMIN") {
     redirect("/change-password");
   }
 
-  redirect("/dashboard");
+  redirect(user.role === "ADMIN" ? "/admin" : "/dashboard");
 }
 
 // ---------------------------------------------------------------------------
