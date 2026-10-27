@@ -8,15 +8,15 @@ import { logout } from "@/app/actions/auth";
 import type { AuthenticatedUser } from "@/lib/auth/getCurrentUser";
 
 const NAV = [
-  { href: "/admin",          icon: <DashIcon />,    label: "Dashboard"   },
-  { href: "/admin/users",    icon: <UsersIcon />,   label: "Users"       },
-  { href: "/topics",         icon: <CoursesIcon />, label: "Courses"     },
-  { href: "/quizzes",        icon: <QuizIcon />,    label: "Quizzes"     },
-  { href: "/exams",          icon: <ExamsIcon />,   label: "Exams"       },
-  { href: "/topics",         icon: <ContentIcon />, label: "Content"     },
-  { href: "/leaderboard",    icon: <CommIcon />,    label: "Communities" },
-  { href: "/admin/reports",  icon: <ReportIcon />,  label: "Reports"     },
-  { href: "/profile",        icon: <SettingsIcon />,label: "Settings"    },
+  { href: "/admin",              icon: <DashIcon />,    label: "Dashboard"   },
+  { href: "/admin/users",        icon: <UsersIcon />,   label: "Users"       },
+  { href: "/admin/courses",      icon: <CoursesIcon />, label: "Courses"     },
+  { href: "/admin/quizzes",      icon: <QuizIcon />,    label: "Quizzes"     },
+  { href: "/admin/exams",        icon: <ExamsIcon />,   label: "Exams"       },
+  { href: "/admin/topics",       icon: <ContentIcon />, label: "Content"     },
+  { href: "/admin/leaderboard",  icon: <CommIcon />,    label: "Communities" },
+  { href: "/admin/reports",      icon: <ReportIcon />,  label: "Reports"     },
+  { href: "/admin/settings",     icon: <SettingsIcon />,label: "Settings"    },
 ];
 
 export default function AdminShell({ user, children }: { user: AuthenticatedUser; children: React.ReactNode }) {
